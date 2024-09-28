@@ -31,6 +31,7 @@ observed in a sample of interest.
 > \[!TIP\]  
 > Sigfit is exclusively a signature fitting tool. For turnkey end-to-end
 > signature analysis we recommend
+> [sigscreen](https://github.com/selkamand/sigscreen)
 
 Unlike most other implementations, sigfit expects no specific signature
 collection or feature space. Users supply a catalogue of counts & a
