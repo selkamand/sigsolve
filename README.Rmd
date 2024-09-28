@@ -32,7 +32,7 @@ The **sigfit** R package implements common mutational signature fitting
 algorithms that allow you to identify the most likely combination of known mutational signatures 
 which explain the mutational profile observed in a sample of interest.
 
-> [!INFO]  
+> [!TIP]  
 > Sigfit is exclusively a signature fitting tool. For turnkey end-to-end signature analysis 
 > we recommend 
 
