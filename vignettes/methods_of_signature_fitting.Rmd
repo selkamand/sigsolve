@@ -1,0 +1,175 @@
+---
+title: "Methods of Signature Fitting"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{methods_of_signature_fitting}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(sigfit)
+```
+
+# Introduction
+
+This vignette is a detailed description of signature fitting approaches implemented in sigfit. For a quick summary of which method to use, consult `?sig_fit()`.
+
+## Problem statement
+
+The issue we're trying to solve in all of these approaches is to optimally reconstruct an observed mutation profile (counts of different types of mutations) using linear combinations of known mutational signatures (proportions of different types of mutations) associated with mutagenic aetiologies.
+
+In plain words, we want to be able to say, for any observed mutation profile: '80% of this profile was derived from tobacco smoking, and 20% from damage by reactive oxygen species' - which is only possible in the first place because we know what a mutational profile from tobacco-smoking and ROS damage look like in isolation.
+
+## Common Matrix Representations
+
+We will be defining individual signatures as column vectors of length K (where K is the number of mutation types). In our examples, we'll be using signatures with 6 basic mutation types (C\>A, C\>G, C\>T, T\>A, T\>C, T\>G)
+
+$$
+\begin{array}{c}\text{sig1} \\\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array} 
+\\~\\ \quad P_{\text{type}} = \text{  proportion of mutations by each mutation type} 
+\\ 
+\sum P_{type}  = 1
+\\
+type \in \{[C>A], [C>G], [C>T], [T>A], [T>C], [T>G]\} \text{ }
+$$
+
+------------------------------------------------------------------------
+
+# Methods
+
+## Linear algebra approaches (Solving $Ax=b$ for $x$) 
+
+Say we want to explain an observed mutational profile using a collection of 4 known signatures (with 6 different mutation types)
+
+One approach is to formulate our problem as a system of linear equations. In this framework, we aim to identify a linear combination of the four signature vectors that precisely reproduces our observed mutational profile. The coefficients in these linear equations represent the number of mutations attributed to each signature and are denoted by $\text{M}_{sig1}, \text{M}_{sig2}, \text{M}_{sig3}\text{ & }\text{M}_{sig4}$​. These coefficients are the unknowns we solve for in this system.
+
+$$
+\begin{array}{c}M_{\text{sig1}} \times \begin{array}{c}\text{sig1} \\\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array}+ M_{\text{sig2}} \times \begin{array}{c}\text{sig2} \\\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array}+ M_{\text{sig3}} \times \begin{array}{c}\text{sig3} \\\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array}+ M_{\text{sig4}} \times \begin{array}{c}\text{sig4} \\\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array}=\begin{array}{c}\text{Observed Profile} \\\begin{bmatrix}C_{C>A} \\C_{C>G} \\C_{C>T} \\C_{T>A} \\C_{T>C} \\C_{T>G}\end{bmatrix}\end{array}\end{array}
+$$
+
+$$
+\text{Note that } P_{C>A}\text{ is a different value in each signature vector}\\
+\text{Observed Profile } C_{types} \text{are the observed mutation counts}
+$$
+
+This problem framing is equivalent to solving a set of **K** simultaneous equations (in this case, 6 because there are 6 mutation types)
+
+$$
+\text{Given all values of P and C, Solve for } \text{M}_{sig1}, \text{M}_{sig2}, \text{M}_{sig3}\text{ & }\text{M}_{sig4} \text{:}
+\\~\\
+\begin{align*}M_{\text{sig1}} \times P_{C>A}^{\text{sig1}} + M_{\text{sig2}} \times P_{C>A}^{\text{sig2}} + M_{\text{sig3}} \times P_{C>A}^{\text{sig3}} + M_{\text{sig4}} \times P_{C>A}^{\text{sig4}} &= C_{C>A} \\M_{\text{sig1}} \times P_{C>G}^{\text{sig1}} + M_{\text{sig2}} \times P_{C>G}^{\text{sig2}} + M_{\text{sig3}} \times P_{C>G}^{\text{sig3}} + M_{\text{sig4}} \times P_{C>G}^{\text{sig4}} &= C_{C>G} \\M_{\text{sig1}} \times P_{C>T}^{\text{sig1}} + M_{\text{sig2}} \times P_{C>T}^{\text{sig2}} + M_{\text{sig3}} \times P_{C>T}^{\text{sig3}} + M_{\text{sig4}} \times P_{C>T}^{\text{sig4}} &= C_{C>T} \\M_{\text{sig1}} \times P_{T>A}^{\text{sig1}} + M_{\text{sig2}} \times P_{T>A}^{\text{sig2}} + M_{\text{sig3}} \times P_{T>A}^{\text{sig3}} + M_{\text{sig4}} \times P_{T>A}^{\text{sig4}} &= C_{T>A} \\M_{\text{sig1}} \times P_{T>C}^{\text{sig1}} + M_{\text{sig2}} \times P_{T>C}^{\text{sig2}} + M_{\text{sig3}} \times P_{T>C}^{\text{sig3}} + M_{\text{sig4}} \times P_{T>C}^{\text{sig4}} &= C_{T>C} \\M_{\text{sig1}} \times P_{T>G}^{\text{sig1}} + M_{\text{sig2}} \times P_{T>G}^{\text{sig2}} + M_{\text{sig3}} \times P_{T>G}^{\text{sig3}} + M_{\text{sig4}} \times P_{T>G}^{\text{sig4}} &= C_{T>G}\end{align*}
+$$
+
+To solve for M, we first need to represent the problem in its $Ax=b$ matrix form (which most tools expect).
+
+**Ax=b form of a system of linear equations:**
+
+$$
+\begin{array}{c@{\hskip 1cm}c@{\hskip 1.5cm}c}
+\underbrace{
+\begin{bmatrix}
+P_{C>A}^{\text{sig1}} & P_{C>A}^{\text{sig2}} & P_{C>A}^{\text{sig3}} & P_{C>A}^{\text{sig4}} \\
+P_{C>G}^{\text{sig1}} & P_{C>G}^{\text{sig2}} & P_{C>G}^{\text{sig3}} & P_{C>G}^{\text{sig4}} \\
+P_{C>T}^{\text{sig1}} & P_{C>T}^{\text{sig2}} & P_{C>T}^{\text{sig3}} & P_{C>T}^{\text{sig4}} \\
+P_{T>A}^{\text{sig1}} & P_{T>A}^{\text{sig2}} & P_{T>A}^{\text{sig3}} & P_{T>A}^{\text{sig4}} \\
+P_{T>C}^{\text{sig1}} & P_{T>C}^{\text{sig2}} & P_{T>C}^{\text{sig3}} & P_{T>C}^{\text{sig4}} \\
+P_{T>G}^{\text{sig1}} & P_{T>G}^{\text{sig2}} & P_{T>G}^{\text{sig3}} & P_{T>G}^{\text{sig4}} \\
+\end{bmatrix}}_{A}
+&
+\underbrace{
+\begin{bmatrix}
+M_{\text{sig1}} \\
+M_{\text{sig2}} \\
+M_{\text{sig3}} \\
+M_{\text{sig4}} \\
+\end{bmatrix}}_{x}
+=
+\underbrace{
+\begin{bmatrix}
+C_{C>A} \\
+C_{C>G} \\
+C_{C>T} \\
+C_{T>A} \\
+C_{T>C} \\
+C_{T>G} \\
+\end{bmatrix}}_{b}
+\end{array}
+$$
+
+> **NOTE:** If matrix representations of linear equations are new to you, I recommend watching the [MIT OpenCourseWare Linear Algebra Course](https://youtu.be/J7DzL2_Na80?si=5bJcQfN8pNOWv2J_).
+
+Once our problem is in $Ax=b$ form we can solve for $x$ using several basic linear algebra approaches. The most appropriate method depends on range of matrix properties you need to support.
+
+Typically, the QR decomposition based implementation in `base::qr.solve()` would be a good choice since it works well for rectangular matrices and approximates solutions using least-squares where appropriate (very important for dealing with **overdetermined** & **undertermined** systems).
+
+However, we have one key constraint: $x \geq 0$. For this reason we will lean towards the following methods:
+
+-   **Non-Negative Least Squares (NNLS):** Suitable for least-squares problems with non-negativity constraints.
+
+    -   `nnls::nnls()`
+
+-   **Linear Programming (LP):** Suitable when optimizing a linear objective function with linear constraints.
+
+    -   `lpSolve::lp()`
+
+-   **Quadratic Programming (QP):** Optimise quadratic minimisation functions with linear constraints.
+
+    -   `quadprog::solve.QP()` to find $x$ which minimises the Frobenius norm of Ax-b.
+
+### A note on **overdetermined** and underdetermined systems
+
+This particular example is an **Overdetermined System**: There are more equations (mutation types) than unknowns (signatures). In most **Overdetermined Systems** there will be no solutions. See [here](https://en.wikipedia.org/wiki/Overdetermined_system#An_example_in_two_dimensions) for an intuitive explanation on why this is. Approximate (least-squares) solutions can be computed for overdetermined systems.
+
+Use of other signature collections may lead to **Underdetermined Systems**: These occur when there are **fewer** equations (mutation types) than unknowns (signatures). **Underdetermined** systems typically have no solutions or infinitely many solutions - as there are not enough constraints to uniquely determine all variables.
+
+### Examples in R 
+
+```{r eval=FALSE, include=FALSE}
+library(nnls)
+
+observed_counts <- c(
+  "C>A" = 183,
+  "C>G" = 779,
+  "C>T" = 588,
+  "T>A" = 706,
+  "T>C" = 384,
+  "T>G" = 127
+)
+
+signatures <- simulate_signature_matrix(
+  signatures = c("sig1", "sig2", "sig3", "sig4"), 
+  channels = c("C>A", "C>G", "C>T", "T>A", "T>C", "T>G"),
+  seed=1
+)
+
+# Our 'A' matrix
+signatures
+
+# Our 'B' vector
+observed_counts
+
+# NNLNs
+nnls <- nnls::nnls(A = signatures, b = observed_counts)
+x_nnls <- nnls$x
+names(x_nnls) <- paste0("M_", colnames(signatures))
+x_nnls
+signatures * x_nnls
+
+# Linear programming
+## To add
+
+# Quadratic programming
+## To Add
+
+
+```
+
+#### 

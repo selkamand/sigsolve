@@ -58,8 +58,6 @@ There are 2 inputs required.
 2.  **signature collection**: A channel X signature matrix where values
     represent fractions.
 
-sigfit will return a ‘sig_model’ s3 object.
-
 ``` r
 library(sigfit)
 
@@ -72,5 +70,5 @@ signatures <- matrix(
   dimnames = list(c("channel1", "channel2", "channel3"), c("Sig1", "Sig2", "Sig3"))
 )
 
-sig_fit(catalogue, signatures)
+sig_fit(catalogue, signatures, method = "nnls")
 ```
