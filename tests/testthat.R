@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 library(testthat)
-library(sigfit)
+library(sigsolve)
 
-test_check("sigfit")
+test_check("sigsolve")

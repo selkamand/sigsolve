@@ -29,9 +29,9 @@
 #'
 #'
 #' # fitting using nnls method
-#' sig_fit(observed_counts, signatures, method = "nnls")
+#' sig_solve(observed_counts, signatures, method = "nnls")
 #'
-sig_fit <- function(catalogue, signatures, method = "nnls"){
+sig_solve <- function(catalogue, signatures, method = "nnls"){
   channels <- names(catalogue)
   channels_signatures <- rownames(signatures)
   signature_names <- colnames(signatures)

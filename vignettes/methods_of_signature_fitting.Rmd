@@ -16,13 +16,13 @@ knitr::opts_chunk$set(
 ```
 
 ```{r setup}
-library(sigfit)
+library(sigsolve)
 library(ggplot2)
 ```
 
 # Introduction
 
-This vignette is a detailed description of signature fitting approaches implemented in sigfit. For a quick summary of which method to use, consult `?sig_fit()`.
+This vignette is a detailed description of signature fitting approaches implemented in sigsolve. For a quick summary of which method to use, consult `?sig_fit()`.
 
 ## Problem statement
 
@@ -203,7 +203,7 @@ QP is a more general and flexible approach, and allows more flexibility in the c
 
 QP methods find the values of $\vec{x}$ which minimise a quadratic function of $\vec{x}$ (i.e. a quadratic equation that where the terms we're trying to predict are squared). It also supports adding linear constraints on the terms we predict, so we can constrain solutions to $\vec{x} \ge 0$ since signatures can't have negative contributions. Later, we'll show how to define a quadratic formula relevant to mutational signatures to minimise, but first lets see QP in action.
 
-> **Note** the current sigfit implementation doesn't really make much use of this increased flexibility, adding only the non-negativity constraint
+> **Note** the current sigsolve implementation doesn't really make much use of this increased flexibility, adding only the non-negativity constraint
 
 ##### Basic Example
 
