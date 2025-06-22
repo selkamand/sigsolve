@@ -75,10 +75,14 @@ sig_solve <- function(catalogue, signatures, method = "nnls"){
    rlang::check_installed(pkg = "nnls", reason = paste0("to fit signatures to data when method = ", method))
     nnls <- nnls::nnls(A = signatures, b = catalogue)
     x_nnls <- nnls$x
+    names(x_nnls) <- signature_names
+    return(x_nnls)
   }
   else{
    stop("No implementation for method = [", method, "]")
   }
+
+
 }
 
 #' Simulate a Signature Matrix

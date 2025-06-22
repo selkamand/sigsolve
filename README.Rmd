@@ -70,5 +70,5 @@ signatures <- matrix(
   dimnames = list(c("channel1", "channel2", "channel3"), c("Sig1", "Sig2", "Sig3"))
 )
 
-sig_fit(catalogue, signatures, method = "nnls")
+sig_solve(catalogue, signatures, method = "nnls")
 ```
