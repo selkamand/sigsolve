@@ -1,6 +1,7 @@
 ---
 title: "Methods of Signature Fitting"
 output: rmarkdown::html_vignette
+
 vignette: >
   %\VignetteIndexEntry{methods_of_signature_fitting}
   %\VignetteEngine{knitr::rmarkdown}
@@ -16,6 +17,7 @@ knitr::opts_chunk$set(
 
 ```{r setup}
 library(sigfit)
+library(ggplot2)
 ```
 
 # Introduction
@@ -24,13 +26,13 @@ This vignette is a detailed description of signature fitting approaches implemen
 
 ## Problem statement
 
-The issue we're trying to solve in all of these approaches is to optimally reconstruct an observed mutation profile (counts of different types of mutations) using linear combinations of known mutational signatures (proportions of different types of mutations) associated with mutagenic aetiologies.
+We seek to **optimally** reconstruct an observed mutation profile (counts of different types of mutations) using linear combinations of known mutational signatures (proportions of different types of mutations) associated with mutagenic processes.
 
-In plain words, we want to be able to say, for any observed mutation profile: '80% of this profile was derived from tobacco smoking, and 20% from damage by reactive oxygen species' - which is only possible in the first place because we know what a mutational profile from tobacco-smoking and ROS damage look like in isolation.
+For any observed mutation profile we want to make claims like '80% of this profile was derived from tobacco smoking, and 20% from damage by reactive oxygen species' - which is theoretically possible because if we know a mutational profile from tobacco-smoking and ROS damage look like in isolation (these are described in public databases & the `sigstash` R package.
 
 ## Common Matrix Representations
 
-We will be defining individual signatures as column vectors of length K (where K is the number of mutation types). In our examples, we'll be using signatures with 6 basic mutation types (C\>A, C\>G, C\>T, T\>A, T\>C, T\>G)
+We define individual signatures as column vectors of length K (where K is the number of mutation types). In our examples, signatures have 6 basic mutation types (C\>A, C\>G, C\>T, T\>A, T\>C, T\>G)
 
 $$
 \begin{array}{c}\text{sig1} \\\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array} 
@@ -45,14 +47,18 @@ $$
 
 # Methods
 
-## Linear algebra approaches (Solving $Ax=b$ for $x$) 
+## Setting up the problem
 
-Say we want to explain an observed mutational profile using a collection of 4 known signatures (with 6 different mutation types)
+Lets try to explain an observed mutational profile using a collection of 4 known signatures (with 6 different mutation types)
 
-One approach is to formulate our problem as a system of linear equations. In this framework, we aim to identify a linear combination of the four signature vectors that precisely reproduces our observed mutational profile. The coefficients in these linear equations represent the number of mutations attributed to each signature and are denoted by $\text{M}_{sig1}, \text{M}_{sig2}, \text{M}_{sig3}\text{ & }\text{M}_{sig4}$​. These coefficients are the unknowns we solve for in this system.
+One approach is to formulate our problem as a system of linear equations. In this framework, we aim to identify a linear combination of the four signature vectors that reproduces our observed mutational profile. The coefficients in these linear equations represent the number of mutations attributed to each signature and are denoted by $\text{M}_{sig1}, \text{M}_{sig2}, \text{M}_{sig3}\text{ & }\text{M}_{sig4}$​. These coefficients are the unknowns we solve for.
 
 $$
-\begin{array}{c}M_{\text{sig1}} \times \begin{array}{c}\text{sig1} \\\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array}+ M_{\text{sig2}} \times \begin{array}{c}\text{sig2} \\\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array}+ M_{\text{sig3}} \times \begin{array}{c}\text{sig3} \\\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array}+ M_{\text{sig4}} \times \begin{array}{c}\text{sig4} \\\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array}=\begin{array}{c}\text{Observed Profile} \\\begin{bmatrix}C_{C>A} \\C_{C>G} \\C_{C>T} \\C_{T>A} \\C_{T>C} \\C_{T>G}\end{bmatrix}\end{array}\end{array}
+\begin{array}{c}
+M_{\text{sig1}} \times 
+\begin{array}{c}
+\text{sig1} \\
+\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array}+ M_{\text{sig2}} \times \begin{array}{c}\text{sig2} \\\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array}+ M_{\text{sig3}} \times \begin{array}{c}\text{sig3} \\\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array}+ M_{\text{sig4}} \times \begin{array}{c}\text{sig4} \\\begin{bmatrix}P_{C>A} \\P_{C>G} \\P_{C>T} \\P_{T>A} \\P_{T>C} \\P_{T>G}\end{bmatrix}\end{array}=\begin{array}{c}\text{Observed Profile} \\\begin{bmatrix}C_{C>A} \\C_{C>G} \\C_{C>T} \\C_{T>A} \\C_{T>C} \\C_{T>G}\end{bmatrix}\end{array}\end{array}
 $$
 
 $$
@@ -60,7 +66,7 @@ $$
 \text{Observed Profile } C_{types} \text{are the observed mutation counts}
 $$
 
-This problem framing is equivalent to solving a set of **K** simultaneous equations (in this case, 6 because there are 6 mutation types)
+This problem formulation is equivalent to solving a system of **K** simultaneous equations (in this case, 6 because there are 6 mutation types)
 
 $$
 \text{Given all values of P and C, Solve for } \text{M}_{sig1}, \text{M}_{sig2}, \text{M}_{sig3}\text{ & }\text{M}_{sig4} \text{:}
@@ -68,11 +74,13 @@ $$
 \begin{align*}M_{\text{sig1}} \times P_{C>A}^{\text{sig1}} + M_{\text{sig2}} \times P_{C>A}^{\text{sig2}} + M_{\text{sig3}} \times P_{C>A}^{\text{sig3}} + M_{\text{sig4}} \times P_{C>A}^{\text{sig4}} &= C_{C>A} \\M_{\text{sig1}} \times P_{C>G}^{\text{sig1}} + M_{\text{sig2}} \times P_{C>G}^{\text{sig2}} + M_{\text{sig3}} \times P_{C>G}^{\text{sig3}} + M_{\text{sig4}} \times P_{C>G}^{\text{sig4}} &= C_{C>G} \\M_{\text{sig1}} \times P_{C>T}^{\text{sig1}} + M_{\text{sig2}} \times P_{C>T}^{\text{sig2}} + M_{\text{sig3}} \times P_{C>T}^{\text{sig3}} + M_{\text{sig4}} \times P_{C>T}^{\text{sig4}} &= C_{C>T} \\M_{\text{sig1}} \times P_{T>A}^{\text{sig1}} + M_{\text{sig2}} \times P_{T>A}^{\text{sig2}} + M_{\text{sig3}} \times P_{T>A}^{\text{sig3}} + M_{\text{sig4}} \times P_{T>A}^{\text{sig4}} &= C_{T>A} \\M_{\text{sig1}} \times P_{T>C}^{\text{sig1}} + M_{\text{sig2}} \times P_{T>C}^{\text{sig2}} + M_{\text{sig3}} \times P_{T>C}^{\text{sig3}} + M_{\text{sig4}} \times P_{T>C}^{\text{sig4}} &= C_{T>C} \\M_{\text{sig1}} \times P_{T>G}^{\text{sig1}} + M_{\text{sig2}} \times P_{T>G}^{\text{sig2}} + M_{\text{sig3}} \times P_{T>G}^{\text{sig3}} + M_{\text{sig4}} \times P_{T>G}^{\text{sig4}} &= C_{T>G}\end{align*}
 $$
 
-To solve for M, we first need to represent the problem in its $Ax=b$ matrix form (which most tools expect).
+To solve for $M_{sig1-4}$, we first need to represent the problem in its $A\vec{x}=b$ matrix form (which most tools expect).
 
 **Ax=b form of a system of linear equations:**
 
 $$
+\textbf{Mutational Signature Problem (Matrix form)}\\
+A=\text{signature collection} \quad x=\text{contributions} \quad b=\text{observed profile}\\
 \begin{array}{c@{\hskip 1cm}c@{\hskip 1.5cm}c}
 \underbrace{
 \begin{bmatrix}
@@ -104,33 +112,434 @@ C_{T>G} \\
 \end{array}
 $$
 
-> **NOTE:** If matrix representations of linear equations are new to you, I recommend watching the [MIT OpenCourseWare Linear Algebra Course](https://youtu.be/J7DzL2_Na80?si=5bJcQfN8pNOWv2J_).
+> **INFO**
+>
+> If matrix representations of linear equations are new to you, I recommend watching the [MIT OpenCourseWare Linear Algebra Course](https://youtu.be/J7DzL2_Na80?si=5bJcQfN8pNOWv2J_).
 
-Once our problem is in $Ax=b$ form we can solve for $x$ using several basic linear algebra approaches. The most appropriate method depends on range of matrix properties you need to support.
+Once our system of linear equations is in $A\vec{x}=\vec{b}$ form we can solve for $\vec{x}$. But let us first decide our question more precisely. Do we really want to solve simultaneously to find values of $\vec{x}$ that **exactly** reconstruct the observed mutation profile? We could certainly attempt this, but recall that systems of simultaneous equations may have either one, none, or infinite solutions. We don't want a method that can fail to get an answer even when the closest solution produces a profile that 'almost' perfectly matches our samples'. Further, even if a solution exists, it is only valid if all exposures are non-negative ($\vec{x} \ge 0$).
 
-Typically, the QR decomposition based implementation in `base::qr.solve()` would be a good choice since it works well for rectangular matrices and approximates solutions using least-squares where appropriate (very important for dealing with **overdetermined** & **undertermined** systems).
+Since we do **NOT** care whether the **exact** observed mutation profile $\vec{b}$ is recreated, the better approach is to find values of $\vec{x}$ that minimise the difference between model ($A\vec{x}$) and observed profile ( $\vec{b}$ ). That is, to minimise $A\vec{x} - \vec{b}$. Since many minimisation methods require a single metric, we will compute the magnitude of the difference between model vs observed vectors, usually using the euclidean magnitude of the vector (a.k.a the $l_2$ norm). We can also add constraints when minimising error, e.g. require values of $x$ are non-negative.
 
-However, we have one key constraint: $x \geq 0$. For this reason we will lean towards the following methods:
+## Minimising Error
 
--   **Non-Negative Least Squares (NNLS):** Suitable for least-squares problems with non-negativity constraints.
+### Formulating an objective function
 
-    -   `nnls::nnls()`
+The major decision when finding $\vec{x}$ to minimise the difference between model and observed profile ($\vec{b}$) is how to summarise it in a single number. One common approach is to compute the $l_2$ norm of the difference vector. This represents the euclidean magnitude of the difference (error) vector, calculated as square root of the sum of the squares of the vector's components. For example the $l_2$ norm of $\vec{v} = (v_1, v_2, v_3)$ would be $||\vec{v}||_2 = \sqrt{v_1^2 + v_2^2 + v_3^2}$.
 
--   **Linear Programming (LP):** Suitable when optimizing a linear objective function with linear constraints.
+So our objective function (which produces the value we seek to minimise) will be denoted as
 
-    -   `lpSolve::lp()`
+$$
+||Ax-b||_2
+$$
 
--   **Quadratic Programming (QP):** Optimise quadratic minimisation functions with linear constraints.
+That square root is annoying to deal with, so we square it away
 
-    -   `quadprog::solve.QP()` to find $x$ which minimises the Frobenius norm of Ax-b.
+$$
+||Ax-b||_2^2
+$$
 
-### A note on **overdetermined** and underdetermined systems
+We also know our constraints: $x$ must be positive. So we can formulate our final minimisation problem:
+
+$$
+\begin{align*}
+\min_{x \in \mathbb{R}^n, \, x \ge 0} \quad & \|Ax - b\|_2^2
+\end{align*}
+$$
+
+Note $b \in R^m$ and $A$ is an $m \times n$ matrix
+
+### Choosing an algorithm
+
+To figure out what minimisation algorithms we can use, we first identify key properties of our objective function $||Ax-b||_2^2$
+
+**Q1: Is objective function linear, quadratic or polynomial?**
+
+-   **Quadratic.** Hopefully this is intuitive. The $l_2^2$ norm is the sum of squares of the output of these linear equations, and so produces a quadratic equation. For an example see [Signatures to a quadratic objective function].
+
+**Q2: Is it Convex or non-Convex**
+
+-   **Convex**. By definition, all norms are convex (although **quasi-norms** like $l_p$ norm for $0 \lt p < 1$ may not be). Convex functions are those where the line segment between any two points on the graph lies **above** the graph. This guarantees that **any local minimum is a global minimum** - a useful property in minimisation. See [Convex vs non-convex functions] for more info.
+
+**Q3: Are constraints linear?**
+
+-   Yes. The constraint $\vec{x} \geq 0$ is linear.
+
+With this information, we can start reaching for algorithms
+
+#### Lawson Hanson Non-Negative Least Squares (NNLS)
+
+NNLS is a type of regression that solves a least squares problem **under the constraint that all coefficients must be non-negative**. More precisely it solves
+
+$$
+\text{min}||Ax - b||_2^2 \\
+\textbf{where: } x \geq 0
+$$
+
+This exactly matches our formulation of the mutational signature fitting problem described above. We've already defined $A$ and $b$ (see [Setting up the problem]). We can simply plug these into the `nnls::nnls()` function and compute the results. This function uses the Lawson and Hanson active set algorithm for solving nnls problems, which we do not describe here.
+
+##### R Example
+
+```{r}
+library(nnls)
+library(sigstash)
+library(sigsim)
+
+signatures <- sig_load(dataset = "REFSIG_v2.03_SBS")
+observed_profile <- sig_simulate_catalogues_from_signatures(signatures, model = c("SBS1"=0.2, "SBS2" = 0.3, "SBS13" = 0.3, "SBS31" = 0.2), n_catalogues = 1,n = 100, simplify = T)
+
+signatures <- sig_load(dataset = "REFSIG_v2.03_SBS", format = "sigminer")
+signatures <- signatures[,c("SBS1", "SBS2", "SBS13", "SBS31")]
+
+sig_fit(signatures, )
+```
+
+#### Quadratic Programming
+
+An almost-identical minimisation problem can be solved using quadratic programming (QP).
+
+**Why use QP if NNLS can already solve the problem?**
+
+QP is a more general and flexible approach, and allows more flexibility in the constraints you can add. NNLS only supports non-negativity, while QP can incorporate both equality and inequality constraints. These constraints can be useful to promote sparsity - as can L1 or L2 regularization. By contrast, NNLS will almost always yield solutions where many signatures have small non-zero contributions.
+
+QP methods find the values of $\vec{x}$ which minimise a quadratic function of $\vec{x}$ (i.e. a quadratic equation that where the terms we're trying to predict are squared). It also supports adding linear constraints on the terms we predict, so we can constrain solutions to $\vec{x} \ge 0$ since signatures can't have negative contributions. Later, we'll show how to define a quadratic formula relevant to mutational signatures to minimise, but first lets see QP in action.
+
+> **Note** the current sigfit implementation doesn't really make much use of this increased flexibility, adding only the non-negativity constraint
+
+##### Basic Example
+
+We'll be following along [this video](https://www.youtube.com/watch?v=GZb9647X8sg) video but in R instead of matlab.
+
+Lets start an exemplar quadratic function we want to minimise:
+
+$$
+\text{cost} = 4x_1^2​+8x_1​x_2​+5x_2^2​+4x_1​−6x_2​ + 50
+$$
+
+> **NOTE**
+>
+> This function is quadratic because it is composed of **ONLY** quadratic ($x_1^2$ & $x_2^2$), linear ($x1$) and constant ($10100$) terms. Bilinear terms ($x_1x_2$) are also fine (& considered quadratic terms).
+
+Since there are only 2 terms, we can start by plotting the a contour plot of cost as we try different combinations of $x_1$ and $x_2$. Visually we can spot that the minimum is probably around $x_1=6.25, x_2=3$)
+
+```{r echo=FALSE, out.width="100%", fig.width=8, fig.height=4, dpi=300}
+# cost <- function(x1, x2){ 0.4 * x1^2 -5*x1 + x2^2 -6*x2 + 50}
+cost <- function(x1, x2){ 4 * x1^2 + 8*x1*x2 + 5*x2^2 + 4*x1 -6*x2 + 50}
+
+
+x1 = seq(-10, 10, 0.15)  
+x2 = seq(-10, 10, 0.15)
+df = expand.grid(X1=x1, X2=x2)
+df$cost <- with(df, cost(X1, X2))
+
+
+label_offset_x=1
+label_offset_y=3
+df |> 
+  ggplot(aes(x=X1, y=X2, z= cost)) +
+  geom_contour_filled(bins = 50, show.legend = FALSE) +
+  theme_bw() +
+  scale_fill_viridis_d(direction = -1) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  geom_abline(slope = -1, intercept = 1, color = "red", linetype = "dashed") +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  geom_vline(xintercept = 0, color = "red", linetype = "dashed") +
+  coord_cartesian(xlim = c(-10, 10), ylim = c(-10, 10)) +
+  xlab(expression(x[1])) +
+  ylab(expression(x[2])) +
+  annotate(geom = "point", x = -5.5, y = 5) +
+    annotate(geom = "curve", x = -5.5, xend = -5.5 + label_offset_x, y = 5, yend = 5 + label_offset_y, curvature = -0.5, ncp=1) +
+  annotate(geom = "label", x = -5.5 + label_offset_x, y = 5 + label_offset_y, hjust = 0,fill = "black", colour = "black", alpha = 0.2,
+           label= "Unconstrained minimum cost observed when \nx1 = -5.5, x2 = 5") +
+  annotate(geom = "point", x = 0, y = 0.6) +
+  annotate(geom = "curve", x = 0, xend = 0 + label_offset_x, y = 0.6, yend = 0.6 + label_offset_y, curvature = -0.5, ncp=1) +
+  annotate(geom = "label", x = -0+label_offset_x, y = 0.6+label_offset_y, hjust = 0, fill = "black", colour = "black", alpha = 0.2,
+           label= "Minimum cost if x1 & x2 are positive \nand sum to <= 1") +
+  ggtitle("Contour map of cost function")
+```
+
+How can we use QP to find the values of $x_1$ and $x_2$ that minimal cost (with and without constraints)?
+
+We have a quadratic formula to minimise but to plug it into the QP programming algorithm we must first convert to the matrix form our QP solver requires. We will use `quadprog::solve.QP()` function which requires the form:
+
+$$
+min(\frac{1}{2}b^TDb-d^tb)
+$$
+
+Which is simpler than it looks once you break up your equation into parts. See [Turning a quadratic objective function into matrix forms for minimisation] for a generalised version. Briefly, we can map quadratic and linear terms to our target forms as follows:
+
+$$
+\text{cost} = \underbrace{4x_1^2 + 8x_1x_2 + 5x_2^2}_{\text{Quadratic: } \frac{1}{2} b^\top D b}\quad\underbrace{+ 4x_1 - 6x_2}_{\text{Linear: } - d^\top b}+ 50
+$$
+
+We ignore the constant $+50$ as it does not affect value of $x_1$ and $x_2$ that produce the minimum.
+
+We'll start by filling in $\frac{1}{2}b^TD\vec{b}$ which is a slight modification on the canonical matrix form of **quadratic equations**. See this [video](https://www.youtube.com/watch?v=0yEiCV-xEWQ) does a great job of breaking down how to do this, as does [this](https://www.google.com/search?sca_esv=2ca2b7159f1ded92&sca_upv=1&sxsrf=ADLYWIJGdDWOs7L_2wWa3dcUKgz8UFdguA:1727689774764&q=how+to+turn+a+ternary+quadratic+form+into+a+matrix&tbm=vid&source=lnms&fbs=AEQNm0BcOTtrxLAuu_QwMeob8rlZbzgoNyvm-EGzMCdSVm7atMhtCrLJ0m6k84h6T6DB015_80PxMDSkJ2XEPAFAiaHtwtd0cCaybCY9lDlZ5wV0PVXcW1os4LHPfo8Hi7TxUak-ntCfFF_UGjwKEpk-MJmtL8j201q3LOIdkxIJPJuUWo01THAtqxZRp0BCiuhLl7BB0BOGYzAGdOn52wLaRGzCVMHnuw&sa=X&ved=2ahUKEwjl-Ln6seqIAxUos1YBHYPOBTIQ0pQJegQIExAB&biw=1728&bih=873&dpr=2#fpstate=ive&vld=cid:d039df74,vid:jGEvOwY_HuM,st:0) one.
+
+$$
+b = \begin{bmatrix}
+x_1 \\ 
+x_2
+\end{bmatrix}
+$$
+
+$$
+D = \begin{bmatrix}4 \times 2 & 8 \\8 & 5 \times 2\end{bmatrix}=\begin{bmatrix}8 & 16 \\16 & 10\end{bmatrix}
+$$
+
+$$
+d = 
+\begin{bmatrix} 
+-4 \\ 
+6
+\end{bmatrix}
+$$
+
+The key to formulating is to always double check by expanding it back out and checking you get the original quadratic (excluding the constant). Lets expand quadratic & bilinear terms first
+
+Now we verify that the quadratic part gives us the original terms:
+
+$$
+\frac{1}{2} 
+\begin{bmatrix}
+x_1 & x_2
+\end{bmatrix}
+\begin{bmatrix}
+8 & 8 \\
+8 & 10
+\end{bmatrix}
+\begin{bmatrix}
+x_1 \\
+x_2
+\end{bmatrix}
+$$
+
+First, multiply the matrix and vector:
+
+$$
+=
+\frac{1}{2}
+\begin{bmatrix}
+x_1 & x_2
+\end{bmatrix}
+\begin{bmatrix}
+8x_1 + 8x_2 \\
+8x_1 + 10x_2
+\end{bmatrix}
+$$
+
+Now do the dot product:
+
+$$
+=
+\frac{1}{2} \left( 8x_1^2 + 8x_1x_2 + 8x_1x_2 + 10x_2^2 \right)
+=
+\frac{1}{2} \left( 8x_1^2 + 16x_1x_2 + 10x_2^2 \right)
+$$
+
+Divide each term by 2:
+
+$$
+= 4x_1^2 + 8x_1x_2 + 5x_2^2
+$$
+
+✅ This matches the original quadratic terms.
+
+Next, expand the linear part:
+
+$$
+- d^\top b = 
+- \begin{bmatrix} -4 & 6 \end{bmatrix}
+\begin{bmatrix}
+x_1 \\
+x_2
+\end{bmatrix}
+= -(-4x_1 + 6x_2) = 4x_1 - 6x_2
+$$
+
+✅ This matches the linear part of the cost function.
+
+Thus, the full expression is:
+
+$$
+\text{cost} = 
+\underbrace{4x_1^2 + 8x_1x_2 + 5x_2^2}_{\frac{1}{2} b^\top D b}
++
+\underbrace{4x_1 - 6x_2}_{- d^\top b}
++ 50
+$$
+
+This confirms the matrix definitions are correct and compatible with `quadprog::solve.QP()`. But before running minimisation, we need to specify our constraints. Lets constrain $x_1$ and $x_2$ must both be $\geq 0$ and must sum to $\leq 1$. We need to define constraints in the form.
+
+$$
+\matrix{A^Tb} \geq b_0
+$$
+
+Lets start from the algebra (keeping them all in the same form:
+
+$$
+\textbf{Constraints:}\\
+\begin{bmatrix} 
+x_1 >= 0 \\
+x_2 >= 0 \\
+- x_1 - x_2 >= -1
+\end{bmatrix}
+$$
+
+Note $x_1+x_2 \leq 1$ is equivalent to $- x_1 - x_2 >= -1$ but we use latter form
+
+Which is the same as
+
+$$
+\textbf{Constraints:} \\\underbrace{\begin{bmatrix} 1  x_1 + 0 x_2  \\0 x_1 + 1 x_2 \\-1 x_1 - 1 x_2 \end{bmatrix}}_{A^\top b}\geq\underbrace{\begin{bmatrix}0 \\0 \\-1\end{bmatrix}}_{b_0}
+$$
+
+And is equivalent to
+
+$$
+\textbf{Constraints:} \\
+\underbrace{\begin{bmatrix}
+1 & 0 \\
+0 & 1  \\
+-1 & - 1
+\end{bmatrix}}_{A^\top}
+\underbrace{\begin{bmatrix}
+x_1 \\
+x_2 \\
+\end{bmatrix}}_{b}
+\geq\underbrace{\begin{bmatrix}0 \\0 \\-1\end{bmatrix}}_{b_0}
+$$
+
+So our final definitions are:
+
+$$
+A^\top = \begin{bmatrix}
+1 & 0 \\
+0 & 1  \\
+-1 & - 1
+\end{bmatrix} \\
+A = \begin{bmatrix}
+1 & 0 & -1 \\
+0 & 1 & -1  \\
+\end{bmatrix} \\
+b_0 = \begin{bmatrix}
+0 \\ 0 \\ -1
+\end{bmatrix}
+$$
+
+As always, we can double check by expanding $A^\top b \geq b_0$ to ensure it reconstructs our constraints (not shown here).
+
+Now just plug in $D,d,A,b_0$ into our solve to get our minimisation (with constraints). The `quadprog::solve.QP` function also outputs an unconstrained solution
+
+**Plugging in the data:**
+
+```{r}
+library(quadprog)
+Dmat <-  matrix(c(8, 8, 8, 10), ncol = 2, byrow = TRUE)
+dvec <-  c(-4, 6)
+Amat <-  matrix(c(1, 0, -1, 0, 1, -1), ncol = 3, byrow = TRUE)
+b0 <- c(0, 0, -1)
+
+minimised <- solve.QP(Dmat=Dmat, dvec = dvec, Amat = Amat, bvec = b0)
+minimised
+```
+
+> **Note:** Use the `meq` argument to specify which constraints to treat as equality vs inequality constraints. Hopefully argument description `?quadprog::solve.QP` is self explanatory after working through constraint logic above
+
+##### Example: Mutational Signature
+
+How do we apply this minimisation to the mutational signature fitting problem?
+
+## Miscellaneous
+
+# Appendix
+
+### Signatures to a quadratic objective function
+
+So what is the quadratic function we want to minimise? Well it would be convenient if we could use the l2 norm function we defined earlier, but we saw it actually square-roots the sum of squares of the terms we want to predict (meaning the function is not quadratic). However, we can make it quadratic by simply squaring it, so our actual optimisation function can be $||A\vec{x}-\vec{b}||_2^2$
+
+It becomes more obvious that this is a quadratic function when we write it out in full. Say we have 2 signatures and 2 mutation types (SBS & DBS):
+
+$$
+M_{sig1} * P_{sbs}^{sig1} + M_{sig2} * P_{sbs}^{sig2} - C_{sbs} = \Delta_{sbs}
+\\
+M_{sig1} * P_{dbs}^{sig1} + M_{sig2} * P_{dbs}^{sig2} - C_{dbs} = \Delta_{dbs}
+$$
+
+We should fill in values for $P$ (signature definitions) and $C$ (observed counts) to simplify our equation
+
+$$
+\begin{array}{c}
+sig1 \\
+\begin{bmatrix}
+0.2 \\
+0.8 \\
+\end{bmatrix}
+\end{array}
+\begin{array}{c}
+sig2 \\
+\begin{bmatrix}
+0.6 \\
+0.4 \\
+\end{bmatrix}
+\end{array}
+\begin{array}{c}
+\text{observed counts} \\
+\begin{bmatrix}
+10 \\
+100 \\
+\end{bmatrix}
+\end{array}
+$$
+
+$$
+ 0.2 \times M_{sig1} + 0.6 \times M_{sig2} - 10 = \Delta_{sbs}
+\\
+0.8 \times M_{sig1} + 0.4 \times M_{sig2} - 100 = \Delta_{dbs}
+$$
+
+lets also change $M_{sig1} = x_1$ and $M_{sig2} = x_2$
+
+$$
+ 0.2x_1 + 0.6 x_2 - 10 = \Delta_{sbs}
+\\
+0.8x_1 + 0.4 x_2 - 100 = \Delta_{dbs}
+$$
+
+Now we can compute the magnitude of the difference between observed and reconstructed mutation profiles$$
+\text{magnitude of reconstructed VS observed} = ||\vec{\Delta}||_2 = \sqrt{\Delta_{sbs}^2 + \Delta_{dbs}^2}
+$$
+
+Lets expand that right term, substituting in our full equations
+
+$$
+||\vec{\Delta}||_2 = \sqrt{(0.2x_1 + 0.6x_2 -10)^2 + (0.8x_1 + 0.4x_2 - 100)^2}
+= \sqrt{0.68x_1^2+0.88x_1x_2-164x_1+0.52x_2^2-92x_2 + 10100}
+$$
+
+Now the equation under the square root is a quadratic a.k.a composed of only quadratic ($x^2$), bilinear ($x_1x_2$), linear ($x1$) and constant ($10100$) terms. So we just square both sides and we're ready to go
+
+$$
+\text{Difference between Observed & Reconstructed matrices}  = ||\vec{\Delta}||_2^2 = 0.68x_1^2+0.88x_1x_2-164x_1+0.52x_2^2-92x_2 + 10100
+$$
+
+Lets Break this down in chunks:
+
+$$
+b^TDb
+$$
+
+Specify what b and d is:
+
+Is actually the standard matrix representation of quadratic forms. This [video](https://www.youtube.com/watch?v=0yEiCV-xEWQ) does a great job of breaking it down.
+
+### O**verdetermined** and underdetermined systems
 
 This particular example is an **Overdetermined System**: There are more equations (mutation types) than unknowns (signatures). In most **Overdetermined Systems** there will be no solutions. See [here](https://en.wikipedia.org/wiki/Overdetermined_system#An_example_in_two_dimensions) for an intuitive explanation on why this is. Approximate (least-squares) solutions can be computed for overdetermined systems.
 
 Use of other signature collections may lead to **Underdetermined Systems**: These occur when there are **fewer** equations (mutation types) than unknowns (signatures). **Underdetermined** systems typically have no solutions or infinitely many solutions - as there are not enough constraints to uniquely determine all variables.
 
-### Examples in R 
+### Examples in R
 
 ```{r eval=FALSE, include=FALSE}
 library(nnls)
@@ -169,7 +578,406 @@ signatures * x_nnls
 # Quadratic programming
 ## To Add
 
+```
+
+# 
+
+## Convex vs non-convex functions
+
+Convex functions are those where the line segment between any two points on the graph lies **above** the graph. This guarantees that **any local minimum is a global minimum** - a useful property in minimisation.
+
+Examples of convex functions:
+
+-   All linear functions
+
+-   Every norm
+
+-   Exponential functions
+
+-   Some quadratic functions
+
+    -   A quadratic function is convex if its graph curves upward everywhere like a bowl, never bending down. $f(x) = x^2$ is quadratic while $f(x) = -x^2$ is convex.
+
+    -   The generalised way to test if a quadratic function is convex is convert to matrix form $b^TDb$ and check whether matrix $D$ is positive semidefinite. If so, its a convex quadratic
+
+```{r echo=FALSE}
+f <- function(x){x^2}
+
+ggplot() +
+  ggtitle("Convex Function") +
+  xlim(-5, 5) +
+  geom_function(fun=f) +
+  annotate(x=0, y=f(0), geom="point") +
+  annotate(x=0, y=0, vjust= -0.5, hjust=0.5, label = "local minimum \nis the \nglobal minimum", geom="text") +
+  annotate(x=-5, y=25, hjust=-0.15, vjust=1, label = "f(x) == x^2", geom="text", parse = TRUE) +
+  ylab("f(x)") +
+  # scale_y_continuous(expand = expansion(c(0.1, 0.05))) +
+  theme_bw()
+
+nonconvex_quadratic <- function(x){-x^2}
+ggplot() +
+  ggtitle("Non-convex quadratic (concave)") +
+  xlim(-10, 10) +
+  geom_function(fun=nonconvex_quadratic) +
+  annotate(x=0, y=nonconvex_quadratic(0), geom="point") +
+  # annotate(x=0, y=nonconvex_quadratic(0), vjust= 1.4, hjust=0.5, label = "local minimum is not \nglobal minimum", geom="text") +
+  annotate(x=-8, y=-100, hjust=0.5, vjust=0, label = "f(x) == -x^2", geom="text", parse = TRUE) +
+  ylab("f(x)") +
+  scale_y_continuous(expand = expansion(c(0.05, 0.1))) +
+  theme_bw()
+```
+
+```{r echo=FALSE}
+# Create x and y ranges
+x <- seq(-2, 2, length.out = 50)
+y <- seq(-2, 2, length.out = 50)
+
+# Compute z = x^2 + y^2 on the grid
+z <- outer(x, y, function(x, y) x^2 + y^2)
+
+# Plot the convex surface
+persp(x, y, z,
+      theta = 30, phi = 30,
+      col = "lightgreen",
+      xlab = "x", ylab = "y", zlab = "f(x, y)",
+      main = "Convex Quadratic: f(x, y) = x² + y²",
+      ticktype = "detailed")
 
 ```
 
-#### 
+```{r echo=FALSE}
+# Define x and y ranges
+x <- seq(-2, 2, length.out = 50)
+y <- seq(-2, 2, length.out = 50)
+
+# Create grid of z = x^2 - y^2 (non-convex)
+z <- outer(x, y, function(x, y) x^2 - y^2)
+
+# Plot 3D surface using base R
+persp(x, y, z,
+      theta = 30, phi = 30,
+      col = "lightblue",
+      xlab = "x", ylab = "y", zlab = "f(x, y)",
+      main = "Non-Convex Quadratic: f(x, y) = x² - y²")
+```
+
+```{r echo=FALSE}
+nonconvex <- function(x){x*sin(x)}
+ggplot() +
+  ggtitle("Non-convex function") +
+  xlim(-10, 10) +
+  geom_function(fun=nonconvex) +
+  annotate(x=0, y=nonconvex(0), geom="point") +
+  annotate(x=0, y=nonconvex(0), vjust= 1.4, hjust=0.5, label = "local minimum is not \nglobal minimum", geom="text") +
+  annotate(x=-8, y=8, hjust=0.5, vjust=0, label = "f(x) == x %.% sin(x)", geom="text", parse = TRUE) +
+  ylab("f(x)") +
+  scale_y_continuous(expand = expansion(c(0.05, 0.1))) +
+  theme_bw()
+```
+
+## Turning a quadratic objective function into matrix forms for minimisation
+
+A univariate quadratic function has the general form
+
+$$
+q(x) = ax^2 + bx + c
+$$
+
+A multivariate quadratic function with 2 variables (binary form) has the general form:
+
+$$
+q(x,y) = ax^2 + 2bxy + cy^2 + dx + ey + f
+$$
+
+To minimise a quadratic equation we need to convert to a matrix form. The exact matrix form required depends on the function / language. E.g. matlab has slightly different requirements to the R **quadprog** package. In all cases, however, you'll need to summarise two parts of your equation separately
+
+$$
+\textbf{Quadratic Terms (}ax^2, cy^2,  bxy \textbf{)}:\\
+b^TDb \\
+\\ 
+\textbf{Linear Terms (e.g. }bx\textbf{ & } dx\textbf{)}: \\
+d^Tb \\
+\textbf{Reconstruct full quadratic equation by summing them}:
+\\
+b^TDb + d^Tb 
+$$
+
+These representations are much simpler than they look. Lets go through them one by one.
+
+### Quadratic Terms
+
+Lets take just the **quadratic** **terms** of our binary quadratic form (underlined)
+
+$$
+q(x,y) = \underline{ax^2} + \underline{2bxy} + \underline{cy^2} + dx + ey + f
+$$
+
+So we need our matrix form ( $b^TDb$ ) to recreate:
+
+$$
+ax^2 + 2bxy + cy^2
+$$
+
+The equivalence of this equation with $b^TDb$ becomes clear as we define matrix $D$ and vector $b$.
+
+The column vector $\vec{b}$ represents our variables $x, y$
+
+$$
+  \begin{align}
+    b &= \begin{bmatrix}
+           x \\
+           y \\
+         \end{bmatrix}
+  \end{align}
+$$
+
+$b^T$ is simply the transposed form of this vector
+
+$$
+\begin{align}    b^\top &= \begin{bmatrix}           x & y         \end{bmatrix}\end{align}
+$$
+
+$D$ is simply a symetric matrix of coefficients for each term.
+
+$$
+  \begin{align}
+    D &= \begin{bmatrix}
+           a & b \\
+           b & c\\
+         \end{bmatrix}
+  \end{align}
+$$
+
+So lets bring it all together:
+
+$$
+b^\top D b =
+\begin{bmatrix}
+x & y
+\end{bmatrix}
+\begin{bmatrix}
+a & b \\
+b & c
+\end{bmatrix}
+\begin{bmatrix}
+x \\
+y
+\end{bmatrix}
+$$
+
+Multiply $D \cdot b$
+
+$$
+Db =
+\begin{bmatrix}
+a & b \\
+b & c
+\end{bmatrix}
+\begin{bmatrix}
+x \\
+y
+\end{bmatrix}
+=
+\begin{bmatrix}
+ax + by \\
+bx + cy
+\end{bmatrix}
+$$
+
+Multiply $b^\top \cdot (Db)$
+
+$$
+b^\top (Db) =
+\begin{bmatrix}
+x & y
+\end{bmatrix}
+\begin{bmatrix}
+ax + by \\
+bx + cy
+\end{bmatrix}
+= x(ax + by) + y(bx + cy)
+$$
+
+Simplifying:
+
+$$
+b^TDb= a x^2 + 2b x y + c y^2
+$$
+
+### Linear Terms
+
+Now lets just take the **linear** **terms** of our binary quadratic form (underlined)
+
+$$
+q(x,y) = ax^2 + 2bxy + cy^2 + \underline{dx} + \underline{ey} + f
+$$
+
+We need our vector form $d^Tb$ to represent:
+
+$$
+d^Tb = dx + ey 
+$$
+
+This equivalence is even easier to understand when we defined vectors $d$ and $b$
+
+As above, $b$ is a column vector of our variables.
+
+$$
+  \begin{align}
+    b &= \begin{bmatrix}
+           x \\
+           y \\
+         \end{bmatrix}
+  \end{align}
+$$
+
+$d$ is just the coefficient vector. $d^T$ is simply the transposed vector
+
+$$
+ \begin{align}
+    d &= \begin{bmatrix}
+           d \\
+           e \\
+         \end{bmatrix}
+  \end{align}
+$$
+
+So $d^Tb$ is actually just:
+
+$$
+d^\top b =\begin{bmatrix}d & e\end{bmatrix}\begin{bmatrix}x \\y\end{bmatrix}= dx + ey
+$$
+
+### Constants
+
+What about the **constant** **terms** of our binary quadratic form (underlined)
+
+$$
+q(x,y) = ax^2 + 2bxy + cy^2 + dx + ey + \underline{f} = 0
+$$
+
+Constants ( $f$ ) are not represented in these matrix forms as they don't affect which values of $x$ and $y$ produce the minimum.
+
+### Putting it all together
+
+$$
+q(x, y) = \underbrace{ax^2 + 2bxy + cy^2}_{\text{Quadratic: } b^\top D b}+ \underbrace{dx + ey}_{\text{Linear: } d^\top b}+ \underbrace{f}_{\text{Constant}}
+$$
+
+Where:
+
+$$
+ \begin{align}
+    b &= \begin{bmatrix}
+           x \\
+           y \\
+         \end{bmatrix}
+  \end{align} 
+$$
+
+$$
+   \begin{align}
+    D &= \begin{bmatrix}
+           a & b \\
+           b & c\\
+         \end{bmatrix}
+  \end{align}
+$$
+
+$$
+ \begin{align}
+    d &= \begin{bmatrix}
+           d \\
+           e \\
+         \end{bmatrix}
+  \end{align}
+$$
+
+The constant is ignored, as it does NOT affect minimisation of $x$ and $y$.
+
+This definition of $b$, $D$ and $d$ puts our equation in the form $b^TDb + d^Tb$, as:
+
+$$
+q(x, y) = b^TDb + d^Tb = \underbrace{ax^2 + 2bxy + cy^2}_{\text{Quadratic: } b^\top D b}+ \underbrace{dx + ey}_{\text{Linear: } d^\top b}
+$$
+
+### Quadprog specific form
+
+But what if your minimization tool requires an alternate form. In R, the **solve.QP** function from the quadprog package requires the form:
+
+$$
+\frac{1}{2}b^TDb -d^Tb 
+$$
+
+If we expand this equation with our current definition of $b$, $D$, and $d$ we won't get our original equation:
+
+$$
+\frac{1}{2}b^TDb - d^Tb \\= \frac{a}{2}x^2 + bxy + \frac{c}{2}y^2 - dx - ey \\
+\ne ax^2 + 2bxy + cy^2 + dx + ey
+$$
+
+So lets redefine $b$, $D$, and $d$ appropriately for `quadprog::solve.QP`:
+
+$$
+q(x, y) = \underbrace{ax^2 + 2bxy + cy^2}_{\text{Quadratic: } \frac{1}{2}b^\top D b} \text{ } \underbrace{+ dx + ey}_{\text{Linear: } - d^\top b}+ \underbrace{f}_{\text{Constant}}
+$$
+
+Where
+
+$$
+\begin{align}
+    b &= \begin{bmatrix}
+           x \\
+           y \\
+         \end{bmatrix}
+  \end{align} 
+$$
+
+$$
+   \begin{align}
+    D &= \begin{bmatrix}
+           2a & 2b \\
+           2b & 2c\\
+         \end{bmatrix}
+  \end{align}
+$$
+
+$$
+ \begin{align}
+    d &= \begin{bmatrix}
+           -d \\
+           -e \\
+         \end{bmatrix}
+  \end{align}
+$$
+
+Just to test, we can re-expand:
+
+$$
+\frac{1}{2} b^\top D b - d^\top b 
+=
+\frac{1}{2}
+\begin{bmatrix}
+x & y
+\end{bmatrix}
+\begin{bmatrix}
+2a & 2b \\
+2b & 2c
+\end{bmatrix}
+\begin{bmatrix}
+x \\
+y
+\end{bmatrix}
+-
+\begin{bmatrix}
+-d & -e
+\end{bmatrix}
+\begin{bmatrix}
+x \\
+y
+\end{bmatrix}
+$$
+
+$$
+= ax^2 + 2bxy + cy^2 + dx + ey
+$$
