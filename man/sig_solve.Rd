@@ -4,15 +4,19 @@
 \alias{sig_solve}
 \title{Signature fitting}
 \usage{
-sig_solve(catalogue, signatures, method = "nnls")
+sig_solve(catalogue, signatures, method = "nnls", verbose = TRUE)
 }
 \arguments{
-\item{catalogue}{catalogue of mutations observed in your sample. A named vector where names are channel and values are counts.}
+\item{catalogue}{a catalogue of mutations observed in your sample.
+Either a sigverse data.frame (see \code{\link[sigshared:catalogue]{sigshared::example_catalogue()}}), or a named vector where names are channel and values are counts.}
 
-\item{signatures}{a channel X signature matrix where values represent fractional contributions of each channels.}
+\item{signatures}{a channel X signature matrix where values represent fractional contributions of each channels.
+Can be loaded using \code{\link[sigstash:sig_load]{sigstash::sig_load()}} by setting \code{format="matrix"}.}
 
 \item{method}{how should fitting be performed.
 \strong{nnls}: Use non-negative least squares method}
+
+\item{verbose}{verbose mode (flag)}
 }
 \value{
 a named vector with 1 element per signature. Values indicate the estimated number of mutation drawn from that signature.

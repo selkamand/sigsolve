@@ -3,10 +3,16 @@
 #' Identify the most likely combination of known mutational signatures
 #' which explain the mutational profile observed in a sample of interest.
 #'
-#' @param catalogue catalogue of mutations observed in your sample. A named vector where names are channel and values are counts.
+#' @param catalogue a catalogue of mutations observed in your sample.
+#' Either a sigverse data.frame (see [sigshared::example_catalogue()]), or a named vector where names are channel and values are counts.
+#'
 #' @param signatures a channel X signature matrix where values represent fractional contributions of each channels.
+#' Can be loaded using [sigstash::sig_load()] by setting `format="matrix"`.
+#'
 #' @param method how should fitting be performed.
 #' \strong{nnls}: Use non-negative least squares method
+#'
+#' @param verbose verbose mode (flag)
 #'
 #' @return a named vector with 1 element per signature. Values indicate the estimated number of mutation drawn from that signature.
 #' @export
@@ -31,7 +37,12 @@
 #' # fitting using nnls method
 #' sig_solve(observed_counts, signatures, method = "nnls")
 #'
-sig_solve <- function(catalogue, signatures, method = "nnls"){
+sig_solve <- function(catalogue, signatures, method = "nnls", verbose = TRUE){
+
+  # Convert sigstash catalogue to vector if need be
+  catalogue <- catalogue_to_named_vector(catalogue, verbose = verbose)
+
+
   channels <- names(catalogue)
   channels_signatures <- rownames(signatures)
   signature_names <- colnames(signatures)
@@ -76,13 +87,12 @@ sig_solve <- function(catalogue, signatures, method = "nnls"){
     nnls <- nnls::nnls(A = signatures, b = catalogue)
     x_nnls <- nnls$x
     names(x_nnls) <- signature_names
-    return(x_nnls)
+    x_nnls_frac <- x_nnls/sum(x_nnls)
+    return(x_nnls_frac)
   }
   else{
    stop("No implementation for method = [", method, "]")
   }
-
-
 }
 
 #' Simulate a Signature Matrix
@@ -119,4 +129,18 @@ simulate_signature_matrix <- function(signatures, channels, digits=2, seed = NUL
 random_numbers_that_sum_to_one <- function(n){
   nums <- runif(n)
   nums/sum(nums)
+}
+
+catalogue_to_named_vector <- function(catalogue, verbose = TRUE){
+
+  if(!is.data.frame(catalogue)){
+   return(catalogue)
+  }
+
+  if(verbose) { message("sig_solve: Data.frame supplied. Converting to catalogue vector")}
+  vecform <- catalogue$count
+  names(vecform) <- catalogue$channel
+  return(vecform)
+
+
 }
