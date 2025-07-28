@@ -168,7 +168,7 @@ With this information, we can start reaching for algorithms
 
 #### Lawson Hanson Non-Negative Least Squares (NNLS)
 
-NNLS is a type of regression that solves a least squares problem **under the constraint that all coefficients must be non-negative**. More precisely it solves
+NNLS is a type of regression that solves a least squares problem **under the constraint that all coefficients must be non-negative**. It will solve:
 
 $$
 \text{min}||Ax - b||_2^2 \\
@@ -179,18 +179,68 @@ This exactly matches our formulation of the mutational signature fitting problem
 
 ##### R Example
 
-```{r}
+```{r, fig.height=4, fig.width=10}
 library(nnls)
 library(sigstash)
 library(sigsim)
+library(sigshared)
+library(sigvis)
+library(sigstats)
 
-signatures <- sig_load(dataset = "REFSIG_v2.03_SBS")
-observed_profile <- sig_simulate_catalogues_from_signatures(signatures, model = c("SBS1"=0.2, "SBS2" = 0.3, "SBS13" = 0.3, "SBS31" = 0.2), n_catalogues = 1,n = 100, simplify = T)
+signatures <- sig_load(dataset = "COSMIC_v3.4_SBS_GRCh38")
+true_model <- c("SBS1"=0.2, "SBS2" = 0.3, "SBS13" = 0.3, "SBS31" = 0.2)
 
-signatures <- sig_load(dataset = "REFSIG_v2.03_SBS", format = "sigminer")
-signatures <- signatures[,c("SBS1", "SBS2", "SBS13", "SBS31")]
+# observed_profile <- sig_simulate_mixed(
+#   signatures, 
+#   model = true_model, 
+#   n_catalogues = 1,
+#   n = 100, 
+#   simplify = TRUE
+# )
 
-sig_fit(signatures, )
+observed_profile <- sig_simulate_perfect(
+  signatures, 
+  model = true_model, 
+  n = 100000, 
+  round = TRUE,
+)
+
+signatures_matrix <- signatures |>
+  sig_collection_reformat_list_to_matrix(values = "fraction")
+
+# Create model
+model <- sig_solve(
+  catalogue = observed_profile, 
+  signatures = signatures_matrix, 
+  method = "nnls"
+)
+
+# Drop signatures that don't contribute
+model <- model[model>0.01]
+
+# Show model
+model
+
+
+# Compute Correctness metrics
+model_correctness <- sig_model_correctness(model, true_model, all_signatures = names(signatures))
+
+# Reconstruct the model as a catalogue
+nnls_catalogue <- sig_simulate_perfect(signatures, model = model, n = sum(observed_profile$count))
+
+cosine <- sig_cosine_similarity(nnls_catalogue, observed_profile)
+
+# Visualise catalogue vs reconstructed
+sig_visualise_compare_reconstructed_to_observed(
+  nnls_catalogue, 
+  catalogue = observed_profile,
+  title= "NNLS best-fit vs Observed Profile (black outline)",
+  subtitle = paste0(
+    "Cosine: ", round(cosine, digits = 3), "\n",
+    "Predicted: ", sig_model_to_string(model = model),
+    "\nActual: ", sig_model_to_string(model = true_model)
+  )
+)
 ```
 
 #### Quadratic Programming
@@ -561,26 +611,28 @@ signatures <- simulate_signature_matrix(
 
 # Our 'A' matrix
 signatures
+A = signatures
 
 # Our 'B' vector
 observed_counts
 
 # NNLNs
+# input: Ax-b where A = Signature matrix (rows = channels, cols = sigs), x are the variables to be optimised, and b is a vector of observed counts
 nnls <- nnls::nnls(A = signatures, b = observed_counts)
 x_nnls <- nnls$x
 names(x_nnls) <- paste0("M_", colnames(signatures))
 x_nnls
 signatures * x_nnls
 
-# Linear programming
-## To add
 
-# Quadratic programming
-## To Add
+# Quadratic programming (minimises the squared L2 norm of Ax-b with constraints) 
+# Where A = signature matrix (rows = channels, cols = sigs)
+Dmat = 2*t(A)%*%A
+dvec = 2*t(A)*observed_counts
+bvec = rep(0, times = nrow(A))
+Amat = 
 
 ```
-
-# 
 
 ## Convex vs non-convex functions
 
